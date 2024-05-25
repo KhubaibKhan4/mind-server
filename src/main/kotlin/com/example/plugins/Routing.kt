@@ -9,7 +9,6 @@ import io.ktor.server.routing.*
 import org.h2.engine.Database
 
 fun Application.configureRouting() {
-    install(AutoHeadResponse)
     DatabaseFactory.init()
     val db = UsersRepository()
     routing {

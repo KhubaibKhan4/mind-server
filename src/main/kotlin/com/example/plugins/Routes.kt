@@ -198,7 +198,7 @@ fun Route.users(
                 postalCode,
                 phoneNumber,
                 userRole,
-                imageUrl
+                "null"
             )
             user?.id?.let {
                 call.respond(
@@ -243,6 +243,8 @@ fun Route.users(
             val users = db.getAllUsers()
             if (users?.isNotEmpty() == true) {
                 call.respond(HttpStatusCode.OK, users)
+            }else{
+                call.respondText(text = "No User Found", status = HttpStatusCode.NotFound)
             }
         } catch (e: Exception) {
             call.respond(
