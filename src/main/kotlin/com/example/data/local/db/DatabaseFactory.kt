@@ -1,5 +1,6 @@
 package com.example.data.local.db
 
+import com.example.data.local.table.user.UserTable
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import kotlinx.coroutines.Dispatchers
@@ -12,7 +13,7 @@ object DatabaseFactory {
     fun init() {
         Database.connect(hikari())
         transaction {
-            //SchemaUtils.create()
+            SchemaUtils.create(UserTable)
         }
     }
 
