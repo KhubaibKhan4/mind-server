@@ -3,7 +3,6 @@ package com.example.data.local.repository.users
 import com.example.domain.model.user.Users
 
 interface UsersDao {
-    interface UsersDao {
         suspend fun insert(
             username: String,
             email: String,
@@ -77,5 +76,4 @@ interface UsersDao {
             id: Long,
             countryName: String
         ):Int
-    }
 }

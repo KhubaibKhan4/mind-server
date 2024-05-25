@@ -30,6 +30,8 @@ dependencies {
     implementation("io.ktor:ktor-server-core-jvm")
     implementation("io.ktor:ktor-serialization-kotlinx-json-jvm")
     implementation("io.ktor:ktor-server-content-negotiation-jvm")
+    implementation("io.ktor:ktor-server-auth-jvm")
+    implementation("io.ktor:ktor-server-auth-jwt-jvm")
     implementation("org.postgresql:postgresql:42.5.1")
     implementation("com.h2database:h2:2.1.214")
     implementation("org.jetbrains.exposed:exposed-core:0.41.1")
