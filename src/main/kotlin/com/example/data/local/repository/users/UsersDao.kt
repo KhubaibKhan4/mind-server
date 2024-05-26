@@ -76,4 +76,5 @@ interface UsersDao {
             id: Long,
             countryName: String
         ):Int
+    suspend fun getUserByEmail(email: String): Users?
 }

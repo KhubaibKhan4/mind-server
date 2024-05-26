@@ -228,6 +228,14 @@ class UsersRepository : UsersDao {
             }
         }
 
+    override suspend fun getUserByEmail(email: String): Users? {
+       return DatabaseFactory.dbQuery {
+            UserTable.select { UserTable.email eq email }
+                .mapNotNull { rowToResult(it) }
+                .singleOrNull()
+        }
+    }
+
 
     private val jwtVerifier : JWTVerifier = JWT.require(Algorithm.HMAC256(jwtSecret))
         .withAudience(jwtAudience)
