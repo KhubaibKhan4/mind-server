@@ -1,6 +1,7 @@
 package com.example.plugins
 
 import com.example.data.local.db.DatabaseFactory
+import com.example.domain.repository.quiz.QuizRepository
 import com.example.domain.repository.user.UsersRepository
 import io.ktor.server.application.*
 import io.ktor.server.plugins.autohead.*
@@ -11,10 +12,12 @@ import org.h2.engine.Database
 fun Application.configureRouting() {
     DatabaseFactory.init()
     val db = UsersRepository()
+    val categoryDb = QuizRepository()
     routing {
         get("/") {
             call.respondText("Hello World!")
         }
         users(db)
+        category(categoryDb)
     }
 }

@@ -1,5 +1,6 @@
 package com.example.data.local.db
 
+import com.example.data.local.table.quiz.QuizCategoryTable
 import com.example.data.local.table.user.UserTable
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
@@ -13,7 +14,7 @@ object DatabaseFactory {
     fun init() {
         Database.connect(hikari())
         transaction {
-            SchemaUtils.create(UserTable)
+            SchemaUtils.create(UserTable, QuizCategoryTable)
         }
     }
 

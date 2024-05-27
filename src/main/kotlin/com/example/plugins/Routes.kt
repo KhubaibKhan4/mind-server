@@ -1,6 +1,7 @@
 package com.example.plugins
 
 import com.example.domain.model.login.LoginResponse
+import com.example.domain.repository.quiz.QuizRepository
 import com.example.domain.repository.user.UsersRepository
 import io.ktor.http.*
 import io.ktor.http.content.*
@@ -677,4 +678,220 @@ fun Route.users(
     }
 
 
+}
+fun Route.category(
+    db: QuizRepository
+){
+    post("v1/category") {
+        val multipart = call.receiveMultipart()
+
+        var name: String? = null
+        var description: String? = null
+        var imageUrl: String? = null
+        val uploadDir = File("upload/products/users")
+        if (!uploadDir.exists()) {
+            uploadDir.mkdirs()
+        }
+
+
+        multipart.forEachPart { part ->
+            when (part) {
+                is PartData.FormItem -> {
+                    when (part.name) {
+                        "name" -> name = part.value
+                        "description" -> description = part.value
+                    }
+                }
+                is PartData.FileItem -> {
+                    val fileName = part.originalFileName?.replace(" ", "_") ?: "image${System.currentTimeMillis()}"
+                    val file = File("upload/products/users", fileName)
+                    part.streamProvider().use { input ->
+                        file.outputStream().buffered().use { output ->
+                            input.copyTo(output)
+                        }
+
+                    }
+                    imageUrl = "/upload/products/users/${fileName}"
+                }
+
+                is PartData.BinaryChannelItem -> {}
+                is PartData.BinaryItem -> {}
+            }
+        }
+        name ?: return@post call.respondText(
+            text = "Name Missing",
+            status = HttpStatusCode.BadRequest
+        )
+        description ?: return@post call.respondText(
+            text = "Description Missing",
+            status = HttpStatusCode.BadRequest
+        )
+        imageUrl ?: return@post call.respondText(
+            text = "Image Missing",
+            status = HttpStatusCode.BadRequest
+        )
+
+        try {
+            val quizCategory = db.insert(
+                name!!, description!!, imageUrl!!
+            )
+            quizCategory?.id?.let {
+                call.respond(
+                    status = HttpStatusCode.OK,
+                    "Category uploaded to server successfully: $quizCategory"
+                )
+            }
+        } catch (e: Exception) {
+            call.respond(
+                status = HttpStatusCode.InternalServerError,
+                "Error while uploading data to server: ${e.message}"
+            )
+        }
+    }
+    put("v1/category/{id}") {
+        val id = call.parameters["id"] ?: return@put call.respondText(
+            text = "Id Not Found",
+            status = HttpStatusCode.NotFound
+        )
+        val multipart = call.receiveMultipart()
+
+        var name: String? = null
+        var description: String? = null
+        var imageUrl: String? = null
+
+        multipart.forEachPart { part ->
+            when (part) {
+                is PartData.FormItem -> {
+                    when (part.name) {
+                        "name" -> name = part.value
+                        "description" -> description = part.value
+                    }
+                }
+
+                is PartData.FileItem -> {
+                    val fileName = part.originalFileName?.replace(" ", "_")
+                        ?: "image${System.currentTimeMillis()}"
+                    val file = File("upload/products/users", fileName)
+                    part.streamProvider().use { input ->
+                        file.outputStream().buffered().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    imageUrl = "/upload/products/users/${fileName}"
+                }
+
+                is PartData.BinaryChannelItem -> {}
+                is PartData.BinaryItem -> {}
+            }
+        }
+
+        name ?: return@put call.respondText(
+            text = "Name Missing",
+            status = HttpStatusCode.BadRequest
+        )
+        description ?: return@put call.respondText(
+            text = "description Missing",
+            status = HttpStatusCode.BadRequest
+        )
+
+        try {
+            val result = id.toLong().let { userId ->
+                db.updateCategory(
+                    userId,
+                    name!!,
+                    description!!,
+                    imageUrl!!
+                )
+            }
+            if (result == 1) {
+                call.respondText(
+                    text = "Update Successfully",
+                    status = HttpStatusCode.OK
+                )
+            } else {
+                call.respondText(
+                    text = "Something Went Wrong",
+                    status = HttpStatusCode.BadRequest
+                )
+            }
+        } catch (e: Exception) {
+            call.respondText(
+                text = e.message.toString(),
+                status = HttpStatusCode.BadRequest
+            )
+        }
+    }
+    get("v1/category") {
+        try {
+            val quizCategories = db.getAllCategories()
+            if (quizCategories?.isNotEmpty() == true) {
+                call.respond(HttpStatusCode.OK, quizCategories)
+            }else{
+                call.respondText(text = "No Category Found", status = HttpStatusCode.NotFound)
+            }
+        } catch (e: Exception) {
+            call.respond(
+                HttpStatusCode.Unauthorized,
+                "Error While Fetching Data From Server: ${e.message}"
+            )
+        }
+    }
+    get("v1/category/{id}") {
+        val parameters = call.parameters["id"]
+        try {
+            val categoryId = parameters?.toLong()
+            if (categoryId == null) {
+                return@get call.respondText(
+                    "Invalid ID",
+                    status = HttpStatusCode.BadRequest
+                )
+            }
+            val quizCategory = db.getCategoryById(categoryId)
+            if (quizCategory == null) {
+                return@get call.respondText(
+                    text = "Category Not Found",
+                    status = HttpStatusCode.NotFound
+                )
+            } else {
+                return@get call.respond(
+                    HttpStatusCode.OK,
+                    quizCategory
+                )
+            }
+
+        } catch (e: Exception) {
+            call.respond(
+                status = HttpStatusCode.Unauthorized,
+                "Error While Fetching Data from Server : ${e.message}"
+            )
+        }
+
+    }
+    delete("v1/category/{id}") {
+        val parameters = call.parameters["id"]
+        try {
+            val quizCategory = parameters?.toLongOrNull()?.let { usersId ->
+                db.deleteCategoryById(usersId)
+            } ?: return@delete call.respondText(
+                text = "No Id Found",
+                status = HttpStatusCode.BadRequest
+            )
+            if (quizCategory == 1) {
+                call.respondText(
+                    text = "Deleted Successfully",
+                    status = HttpStatusCode.OK
+                )
+            } else {
+                call.respondText(
+                    text = "Id Not Found",
+                    status = HttpStatusCode.BadRequest
+                )
+            }
+        } catch (e: Exception) {
+            call.respond(
+                HttpStatusCode.Unauthorized,
+                "Error While Deleting User From Server ${e.message}"
+            )
+        }
+    }
 }
