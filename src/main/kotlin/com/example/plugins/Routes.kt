@@ -1,6 +1,7 @@
 package com.example.plugins
 
 import com.example.domain.model.login.LoginResponse
+import com.example.domain.repository.quiz.QuizQuestionsRepository
 import com.example.domain.repository.quiz.QuizRepository
 import com.example.domain.repository.user.UsersRepository
 import io.ktor.http.*
@@ -52,6 +53,7 @@ fun Route.users(
                         "userRole" -> userRole = part.value
                     }
                 }
+
                 is PartData.FileItem -> {
                     val fileName = part.originalFileName?.replace(" ", "_") ?: "image${System.currentTimeMillis()}"
                     val file = File("upload/products/users", fileName)
@@ -150,39 +152,39 @@ fun Route.users(
             text = "Password Missing",
             status = HttpStatusCode.Unauthorized
         )
-        val userName= parameters["userName"] ?: return@post call.respondText(
+        val userName = parameters["userName"] ?: return@post call.respondText(
             text = "Username Missing",
             status = HttpStatusCode.BadRequest
         )
-        val fullName= parameters["fullName"] ?: return@post call.respondText(
+        val fullName = parameters["fullName"] ?: return@post call.respondText(
             text = "fullName Missing",
             status = HttpStatusCode.BadRequest
         )
-        val address= parameters["address"] ?: return@post call.respondText(
+        val address = parameters["address"] ?: return@post call.respondText(
             text = "address Missing",
             status = HttpStatusCode.BadRequest
         )
-        val city= parameters["city"] ?: return@post call.respondText(
+        val city = parameters["city"] ?: return@post call.respondText(
             text = "city Missing",
             status = HttpStatusCode.BadRequest
         )
-        val country= parameters["country"] ?: return@post call.respondText(
+        val country = parameters["country"] ?: return@post call.respondText(
             text = "country Missing",
             status = HttpStatusCode.BadRequest
         )
-        val postalCode= parameters["postalCode"]?.toLongOrNull() ?: return@post call.respondText(
+        val postalCode = parameters["postalCode"]?.toLongOrNull() ?: return@post call.respondText(
             text = "postalCode Missing",
             status = HttpStatusCode.BadRequest
         )
-        val phoneNumber= parameters["phoneNumber"] ?: return@post call.respondText(
+        val phoneNumber = parameters["phoneNumber"] ?: return@post call.respondText(
             text = "phoneNumber Missing",
             status = HttpStatusCode.BadRequest
         )
-        val userRole= parameters["userRole"] ?: return@post call.respondText(
+        val userRole = parameters["userRole"] ?: return@post call.respondText(
             text = "userRole Missing",
             status = HttpStatusCode.BadRequest
         )
-        val imageUrl= parameters["imageUrl"] ?: return@post call.respondText(
+        val imageUrl = parameters["imageUrl"] ?: return@post call.respondText(
             text = "imageUrl Missing",
             status = HttpStatusCode.BadRequest
         )
@@ -244,7 +246,7 @@ fun Route.users(
             val users = db.getAllUsers()
             if (users?.isNotEmpty() == true) {
                 call.respond(HttpStatusCode.OK, users)
-            }else{
+            } else {
                 call.respondText(text = "No User Found", status = HttpStatusCode.NotFound)
             }
         } catch (e: Exception) {
@@ -679,9 +681,10 @@ fun Route.users(
 
 
 }
+
 fun Route.category(
     db: QuizRepository
-){
+) {
     post("v1/category") {
         val multipart = call.receiveMultipart()
 
@@ -702,6 +705,7 @@ fun Route.category(
                         "description" -> description = part.value
                     }
                 }
+
                 is PartData.FileItem -> {
                     val fileName = part.originalFileName?.replace(" ", "_") ?: "image${System.currentTimeMillis()}"
                     val file = File("upload/products/users", fileName)
@@ -826,7 +830,7 @@ fun Route.category(
             val quizCategories = db.getAllCategories()
             if (quizCategories?.isNotEmpty() == true) {
                 call.respond(HttpStatusCode.OK, quizCategories)
-            }else{
+            } else {
                 call.respondText(text = "No Category Found", status = HttpStatusCode.NotFound)
             }
         } catch (e: Exception) {
@@ -892,6 +896,171 @@ fun Route.category(
                 HttpStatusCode.Unauthorized,
                 "Error While Deleting User From Server ${e.message}"
             )
+        }
+    }
+}
+
+fun Route.quiz(db: QuizQuestionsRepository, categoryDb: QuizRepository) {
+    post("v1/quiz-questions") {
+        val parameters = call.receive<Parameters>()
+        val categoryId = parameters["categoryId"]?.toLongOrNull() ?: return@post call.respondText(
+            text = "Invalid or missing categoryId",
+            status = HttpStatusCode.BadRequest
+        )
+        val title = parameters["title"] ?: return@post call.respondText(
+            text = "title Not Found",
+            status = HttpStatusCode.BadRequest
+        )
+        val answer1 = parameters["answer1"] ?: return@post call.respondText(
+            text = "answer1 Not Found",
+            status = HttpStatusCode.BadRequest
+        )
+        val answer2 = parameters["answer2"] ?: return@post call.respondText(
+            text = "answer2 Not Found",
+            status = HttpStatusCode.BadRequest
+        )
+        val answer3 = parameters["answer3"] ?: return@post call.respondText(
+            text = "answer3 Not Found",
+            status = HttpStatusCode.BadRequest
+        )
+        val answer4 = parameters["answer4"] ?: return@post call.respondText(
+            text = "answer4 Not Found",
+            status = HttpStatusCode.BadRequest
+        )
+        val correctAnswer = parameters["correctAnswer"] ?: return@post call.respondText(
+            text = "correctAnswer Not Found",
+            status = HttpStatusCode.BadRequest
+        )
+
+        val categoryTitle = categoryDb.getCategoryById(categoryId)?.name
+            ?: return@post call.respondText(
+                text = "Category not found",
+                status = HttpStatusCode.NotFound
+            )
+
+        try {
+            val quizQuestion = db.insert(
+                categoryId, categoryTitle, title, answer1, answer2, answer3, answer4, correctAnswer
+            )
+            if (quizQuestion != null) {
+                call.respond(HttpStatusCode.Created, quizQuestion)
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, "Error creating quiz question")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error: ${e.message}")
+        }
+    }
+
+    put("v1/quiz-questions/{id}") {
+        val id = call.parameters["id"]?.toLongOrNull()
+            ?: return@put call.respond(HttpStatusCode.BadRequest, "Invalid or missing quiz ID")
+
+        val parameters = call.receive<Parameters>()
+        val categoryId = parameters["categoryId"]?.toLongOrNull() ?: return@put call.respondText(
+            text = "Invalid or missing categoryId",
+            status = HttpStatusCode.BadRequest
+        )
+        val title = parameters["title"] ?: return@put call.respondText(
+            text = "title Not Found",
+            status = HttpStatusCode.BadRequest
+        )
+        val answer1 = parameters["answer1"] ?: return@put call.respondText(
+            text = "answer1 Not Found",
+            status = HttpStatusCode.BadRequest
+        )
+        val answer2 = parameters["answer2"] ?: return@put call.respondText(
+            text = "answer2 Not Found",
+            status = HttpStatusCode.BadRequest
+        )
+        val answer3 = parameters["answer3"] ?: return@put call.respondText(
+            text = "answer3 Not Found",
+            status = HttpStatusCode.BadRequest
+        )
+        val answer4 = parameters["answer4"] ?: return@put call.respondText(
+            text = "answer4 Not Found",
+            status = HttpStatusCode.BadRequest
+        )
+        val correctAnswer = parameters["correctAnswer"] ?: return@put call.respondText(
+            text = "correctAnswer Not Found",
+            status = HttpStatusCode.BadRequest
+        )
+
+        val categoryTitle = categoryDb.getCategoryById(categoryId)?.name
+            ?: return@put call.respondText(
+                text = "Category not found",
+                status = HttpStatusCode.NotFound
+            )
+
+        try {
+            val updatedRows = db.updateQuiz(
+                id, categoryId, categoryTitle, title, answer1, answer2, answer3, answer4, correctAnswer
+            )
+            if (updatedRows > 0) {
+                call.respond(HttpStatusCode.OK, "Quiz question updated successfully")
+            } else {
+                call.respond(HttpStatusCode.NotFound, "Quiz question not found")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error: ${e.message}")
+        }
+    }
+
+    get("v1/quiz-questions") {
+        try {
+            val quizQuestions = db.getAllQuestions()
+            if (quizQuestions != null && quizQuestions.isNotEmpty()) {
+                call.respond(HttpStatusCode.OK, quizQuestions)
+            } else {
+                call.respond(HttpStatusCode.NotFound, "No quiz questions found")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error: ${e.message}")
+        }
+    }
+
+    get("v1/quiz-questions/{id}") {
+        val id = call.parameters["id"]?.toLongOrNull()
+            ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid or missing quiz ID")
+        try {
+            val quizQuestion = db.getQuizById(id)
+            if (quizQuestion != null) {
+                call.respond(HttpStatusCode.OK, quizQuestion)
+            } else {
+                call.respond(HttpStatusCode.NotFound, "Quiz question not found")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error: ${e.message}")
+        }
+    }
+
+    get("v1/quiz-questions/category/{categoryId}") {
+        val categoryId = call.parameters["categoryId"]?.toLongOrNull()
+            ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid or missing category ID")
+        try {
+            val quizQuestions = db.getQuizByCategoryId(categoryId)
+            if (quizQuestions != null && quizQuestions.isNotEmpty()) {
+                call.respond(HttpStatusCode.OK, quizQuestions)
+            } else {
+                call.respond(HttpStatusCode.NotFound, "No quiz questions found for the given category")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error: ${e.message}")
+        }
+    }
+
+    delete("v1/quiz-questions/{id}") {
+        val id = call.parameters["id"]?.toLongOrNull()
+            ?: return@delete call.respond(HttpStatusCode.BadRequest, "Invalid or missing quiz ID")
+        try {
+            val deletedRows = db.deleteQuizById(id)
+            if (deletedRows > 0) {
+                call.respond(HttpStatusCode.OK, "Quiz question deleted successfully")
+            } else {
+                call.respond(HttpStatusCode.NotFound, "Quiz question not found")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error: ${e.message}")
         }
     }
 }
