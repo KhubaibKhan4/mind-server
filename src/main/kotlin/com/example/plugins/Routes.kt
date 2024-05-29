@@ -1074,6 +1074,10 @@ fun Route.notes(
         var description = ""
         var pdfFileName = ""
         var pdfFilePath: String? = null
+        val uploadDir = File("upload/products/notes")
+        if (!uploadDir.exists()) {
+            uploadDir.mkdirs()
+        }
 
         multipart.forEachPart { part ->
             when (part) {
@@ -1087,13 +1091,13 @@ fun Route.notes(
                     if (part.name == "pdf") {
                         pdfFileName = part.originalFileName?.replace(" ", "_")
                             ?: "pdf_${System.currentTimeMillis()}.pdf"
-                        val file = File("upload/notes", pdfFileName)
+                        val file = File("upload/products/notes", pdfFileName)
                         part.streamProvider().use { input ->
                             file.outputStream().buffered().use { output ->
                                 input.copyTo(output)
                             }
                         }
-                        pdfFilePath = "/upload/notes/$pdfFileName"
+                        pdfFilePath = "/upload/products/notes/$pdfFileName"
                     }
                 }
                 else -> {}
