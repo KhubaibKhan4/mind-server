@@ -1,6 +1,7 @@
 package com.example.plugins
 
 import com.example.domain.model.login.LoginResponse
+import com.example.domain.repository.classes.ClassesRepository
 import com.example.domain.repository.notes.NotesRepository
 import com.example.domain.repository.papers.BoardsRepository
 import com.example.domain.repository.quiz.QuizQuestionsRepository
@@ -1414,6 +1415,128 @@ fun Route.boards(db: BoardsRepository) {
             }
         } catch (e: Exception) {
             call.respond(HttpStatusCode.InternalServerError, "Error while deleting board: ${e.message}")
+        }
+    }
+}
+
+fun Route.classes(
+    db: ClassesRepository
+) {
+    post("v1/classes") {
+        val parameters = call.receiveParameters()
+        val boardId = parameters["boardId"]?.toLongOrNull()
+        val title = parameters["title"]
+        val description = parameters["description"]
+
+        if (boardId == null || title.isNullOrBlank() || description.isNullOrBlank()) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid parameters")
+            return@post
+        }
+
+        try {
+            val newClass = db.insert(boardId, title, description)
+            if (newClass != null) {
+                call.respond(HttpStatusCode.Created, newClass)
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, "Unable to create class")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while processing request: ${e.message}")
+        }
+    }
+
+    get("v1/classes") {
+        try {
+            val classes = db.getAllClasses()
+            call.respond(HttpStatusCode.OK, classes ?: emptyList())
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while processing request: ${e.message}")
+        }
+    }
+
+    get("v1/classes/{id}") {
+        val id = call.parameters["id"]?.toLongOrNull()
+        if (id == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid class ID")
+            return@get
+        }
+
+        try {
+            val classDetails = db.getClassesById(id)
+            if (classDetails != null) {
+                call.respond(HttpStatusCode.OK, classDetails)
+            } else {
+                call.respond(HttpStatusCode.NotFound, "Class not found")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while processing request: ${e.message}")
+        }
+    }
+
+    get("v1/classes/board/{id}") {
+        val boardId = call.parameters["id"]?.toLongOrNull()
+        if (boardId == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid board ID")
+            return@get
+        }
+
+        try {
+            val classesForBoard = db.getClassesByBoardId(boardId)
+            if (classesForBoard != null) {
+                call.respond(HttpStatusCode.OK, classesForBoard)
+            } else {
+                call.respond(HttpStatusCode.NotFound, "No classes found for this board")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while processing request: ${e.message}")
+        }
+    }
+
+    delete("v1/classes/{id}") {
+        val id = call.parameters["id"]?.toLongOrNull()
+        if (id == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid class ID")
+            return@delete
+        }
+
+        try {
+            val deleteCount = db.deleteBoardById(id)
+            if (deleteCount > 0) {
+                call.respond(HttpStatusCode.OK, "Class deleted successfully")
+            } else {
+                call.respond(HttpStatusCode.NotFound, "Class not found")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while processing request: ${e.message}")
+        }
+    }
+
+    put("v1/classes/{id}") {
+        val id = call.parameters["id"]?.toLongOrNull()
+        if (id == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid class ID")
+            return@put
+        }
+
+        val parameters = call.receiveParameters()
+        val boardId = parameters["boardId"]?.toLongOrNull()
+        val title = parameters["title"]
+        val description = parameters["description"]
+
+        if (boardId == null || title.isNullOrBlank() || description.isNullOrBlank()) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid parameters")
+            return@put
+        }
+
+        try {
+            val updateCount = db.updateBoard(id, boardId, title, description)
+            if (updateCount > 0) {
+                call.respond(HttpStatusCode.OK, "Class updated successfully")
+            } else {
+                call.respond(HttpStatusCode.NotFound, "Class not found")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while processing request: ${e.message}")
         }
     }
 }

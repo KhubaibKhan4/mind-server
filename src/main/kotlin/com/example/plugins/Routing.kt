@@ -1,6 +1,7 @@
 package com.example.plugins
 
 import com.example.data.local.db.DatabaseFactory
+import com.example.domain.repository.classes.ClassesRepository
 import com.example.domain.repository.notes.NotesRepository
 import com.example.domain.repository.papers.BoardsRepository
 import com.example.domain.repository.quiz.QuizQuestionsRepository
@@ -19,6 +20,7 @@ fun Application.configureRouting() {
     val quizDb = QuizQuestionsRepository()
     val notesDb = NotesRepository()
     val boardsDb = BoardsRepository()
+    val classesDb = ClassesRepository()
     routing {
         get("/") {
             call.respondText("Hello World!")
@@ -28,5 +30,6 @@ fun Application.configureRouting() {
         quiz(quizDb,categoryDb)
         notes(notesDb)
         boards(boardsDb)
+        classes(classesDb)
     }
 }
