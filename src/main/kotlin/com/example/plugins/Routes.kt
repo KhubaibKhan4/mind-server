@@ -1,6 +1,7 @@
 package com.example.plugins
 
 import com.example.domain.model.login.LoginResponse
+import com.example.domain.repository.notes.NotesRepository
 import com.example.domain.repository.quiz.QuizQuestionsRepository
 import com.example.domain.repository.quiz.QuizRepository
 import com.example.domain.repository.user.UsersRepository
@@ -1063,4 +1064,170 @@ fun Route.quiz(db: QuizQuestionsRepository, categoryDb: QuizRepository) {
             call.respond(HttpStatusCode.InternalServerError, "Error: ${e.message}")
         }
     }
+}
+fun Route.notes(
+    db:NotesRepository
+){
+    post("v1/notes") {
+        val multipart = call.receiveMultipart()
+        var title = ""
+        var description = ""
+        var pdfFileName = ""
+        var pdfFilePath: String? = null
+
+        multipart.forEachPart { part ->
+            when (part) {
+                is PartData.FormItem -> {
+                    when (part.name) {
+                        "title" -> title = part.value
+                        "description" -> description = part.value
+                    }
+                }
+                is PartData.FileItem -> {
+                    if (part.name == "pdf") {
+                        pdfFileName = part.originalFileName?.replace(" ", "_")
+                            ?: "pdf_${System.currentTimeMillis()}.pdf"
+                        val file = File("upload/notes", pdfFileName)
+                        part.streamProvider().use { input ->
+                            file.outputStream().buffered().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        pdfFilePath = "/upload/notes/$pdfFileName"
+                    }
+                }
+                else -> {}
+            }
+            part.dispose()
+        }
+
+        try {
+            if (pdfFilePath == null) {
+                call.respond(HttpStatusCode.BadRequest, "PDF file is required")
+                return@post
+            }
+
+            val note = db.insert(title, description, pdfFilePath!!)
+            if (note != null) {
+                call.respond(HttpStatusCode.Created, note)
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, "Unable to create note")
+            }
+        }catch (e:Exception){
+            call.respond(HttpStatusCode.Unauthorized, "Error While Uploading Data to Server ${e.message}")
+        }
+    }
+    get("v1/notes") {
+        try {
+            val notes = db.getAllNotes()
+            if (notes != null) {
+                call.respond(notes)
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, "Unable to fetch notes")
+            }
+        }catch (e:Exception){
+            call.respond(HttpStatusCode.Unauthorized, "Error While Fetching Data From Server ${e.message}")
+        }
+    }
+    get("v1/notes/{id}") {
+        val id = call.parameters["id"]?.toLongOrNull()
+       try {
+           if (id == null) {
+               call.respond(HttpStatusCode.BadRequest, "Invalid note ID")
+               return@get
+           }
+
+           val note = db.getNoteById(id)
+           if (note != null) {
+               call.respond(note)
+           } else {
+               call.respond(HttpStatusCode.NotFound, "Note not found")
+           }
+       }catch (e:Exception){
+           call.respond(HttpStatusCode.Unauthorized, "Error While Fetching Data From Server ${e.message}")
+       }
+    }
+    put("v1/notes/{id}") {
+        val id = call.parameters["id"]?.toLongOrNull()
+        if (id == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid note ID")
+            return@put
+        }
+
+        val multipart = call.receiveMultipart()
+        var title = ""
+        var description = ""
+        var pdfFileName = ""
+        var pdfFilePath: String? = null
+
+        multipart.forEachPart { part ->
+            when (part) {
+                is PartData.FormItem -> {
+                    when (part.name) {
+                        "title" -> title = part.value
+                        "description" -> description = part.value
+                    }
+                }
+                is PartData.FileItem -> {
+                    if (part.name == "pdf") {
+                        pdfFileName = part.originalFileName?.replace(" ", "_")
+                            ?: "pdf_${System.currentTimeMillis()}.pdf"
+                        val file = File("upload/notes", pdfFileName)
+                        part.streamProvider().use { input ->
+                            file.outputStream().buffered().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        pdfFilePath = "/upload/notes/$pdfFileName"
+                    }
+                }
+                else -> {}
+            }
+            part.dispose()
+        }
+
+        try {
+            val currentNote = db.getNoteById(id)
+            if (currentNote == null) {
+                call.respond(HttpStatusCode.NotFound, "Note not found")
+                return@put
+            }
+
+            val finalPdfFilePath = pdfFilePath ?: currentNote.pdfUrl
+
+            val updateCount = db.updateNote(
+                id = id,
+                title = title,
+                description = description,
+                pdfUrl = finalPdfFilePath
+            )
+
+            if (updateCount > 0) {
+                call.respond(HttpStatusCode.OK, "Note updated successfully")
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, "Unable to update note")
+            }
+        }catch (e:Exception){
+            call.respond(HttpStatusCode.Unauthorized, "Error While Updating Data to Server ${e.message}")
+        }
+    }
+    delete("v1/notes/{id}") {
+        val id = call.parameters["id"]?.toLongOrNull()
+        if (id == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid note ID")
+            return@delete
+        }
+
+       try {
+           val deleteCount = db.deleteNote(id)
+           if (deleteCount > 0) {
+               call.respond(HttpStatusCode.OK, "Note deleted successfully")
+           } else {
+               call.respond(HttpStatusCode.InternalServerError, "Unable to delete note")
+           }
+       }catch (e: Exception){
+           call.respond(HttpStatusCode.Unauthorized, "Error While Deleting Data to Server ${e.message}")
+       }
+    }
+
 }
