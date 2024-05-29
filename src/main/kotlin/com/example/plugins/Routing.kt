@@ -4,6 +4,7 @@ import com.example.data.local.db.DatabaseFactory
 import com.example.domain.repository.classes.ClassesRepository
 import com.example.domain.repository.notes.NotesRepository
 import com.example.domain.repository.papers.BoardsRepository
+import com.example.domain.repository.papers.SubjectsRepository
 import com.example.domain.repository.quiz.QuizQuestionsRepository
 import com.example.domain.repository.quiz.QuizRepository
 import com.example.domain.repository.user.UsersRepository
@@ -21,6 +22,7 @@ fun Application.configureRouting() {
     val notesDb = NotesRepository()
     val boardsDb = BoardsRepository()
     val classesDb = ClassesRepository()
+    val subject = SubjectsRepository()
     routing {
         get("/") {
             call.respondText("Hello World!")
@@ -31,5 +33,6 @@ fun Application.configureRouting() {
         notes(notesDb)
         boards(boardsDb)
         classes(classesDb)
+        subjects(subject)
     }
 }

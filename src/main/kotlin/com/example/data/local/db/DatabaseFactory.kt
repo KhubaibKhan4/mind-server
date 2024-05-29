@@ -3,6 +3,7 @@ package com.example.data.local.db
 import com.example.data.local.table.notes.NotesTable
 import com.example.data.local.table.papers.boards.BoardsTable
 import com.example.data.local.table.papers.classes.ClassesTable
+import com.example.data.local.table.papers.subjects.SubjectsTable
 import com.example.data.local.table.quiz.QuizCategoryTable
 import com.example.data.local.table.quiz.QuizQuestionTable
 import com.example.data.local.table.user.UserTable
@@ -18,7 +19,15 @@ object DatabaseFactory {
     fun init() {
         Database.connect(hikari())
         transaction {
-            SchemaUtils.create(UserTable, QuizCategoryTable, QuizQuestionTable, NotesTable, BoardsTable, ClassesTable)
+            SchemaUtils.create(
+                UserTable,
+                QuizCategoryTable,
+                QuizQuestionTable,
+                NotesTable,
+                BoardsTable,
+                ClassesTable,
+                SubjectsTable
+            )
         }
     }
 
