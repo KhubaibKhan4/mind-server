@@ -3,9 +3,12 @@ package com.example.plugins
 import com.example.domain.model.login.LoginResponse
 import com.example.domain.model.papers.combine.BoardDetails
 import com.example.domain.model.papers.combine.ClassDetails
+import com.example.domain.model.papers.combine.SubjectDetails
+import com.example.domain.model.papers.papers.Papers
 import com.example.domain.repository.classes.ClassesRepository
 import com.example.domain.repository.notes.NotesRepository
 import com.example.domain.repository.papers.BoardsRepository
+import com.example.domain.repository.papers.PapersRepository
 import com.example.domain.repository.papers.SubjectsRepository
 import com.example.domain.repository.quiz.QuizQuestionsRepository
 import com.example.domain.repository.quiz.QuizRepository
@@ -1682,10 +1685,12 @@ fun Route.subjects(
         }
     }
 }
+
 fun Route.boardDetails(
     boardDb: BoardsRepository,
     classDb: ClassesRepository,
-    subjectDb: SubjectsRepository
+    subjectDb: SubjectsRepository,
+    papersDb: PapersRepository
 ) {
     get("/v1/board-details/{boardId}") {
         val boardId = call.parameters["boardId"]?.toLongOrNull()
@@ -1698,7 +1703,21 @@ fun Route.boardDetails(
             val board = boardDb.getBoardById(boardId)?.let { board ->
                 val classes = classDb.getClassesByBoardId(boardId) ?: emptyList()
                 val classDetails = classes.map { classItem ->
-                    val subjects = subjectDb.getSubjectsByClassId(classItem.id) ?: emptyList()
+                    val subjects = subjectDb.getSubjectsByClassId(classItem.id)?.map { subject ->
+                        val papers = papersDb.getPapersBySubjectId(subject.id) ?: emptyList()
+                        val papersWithUrls = papers.map { paper ->
+                            // Construct the PDF URL by combining the base URL with the paper's URL
+                            val pdfUrl = "${paper.pdfUrl}"
+                            paper.copy(pdfUrl = pdfUrl)
+                        }
+                        SubjectDetails(
+                            id = subject.id,
+                            classId = subject.classId,
+                            title = subject.title,
+                            description = subject.description,
+                            papers = papersWithUrls
+                        )
+                    } ?: emptyList<SubjectDetails>()
                     ClassDetails(
                         id = classItem.id,
                         boardId = classItem.boardId,
@@ -1728,3 +1747,184 @@ fun Route.boardDetails(
     }
 }
 
+
+
+fun Route.papersRoute(db: PapersRepository) {
+    post("/v1/papers") {
+        val multipart = call.receiveMultipart()
+        var boardId: Long? = null
+        var classId: Long? = null
+        var subjectId: Long? = null
+        var pdfFilePath: String? = null
+        val uploadDir = File("upload/products/pdfs/papers")
+        if (!uploadDir.exists()) {
+            uploadDir.mkdirs()
+        }
+
+        multipart.forEachPart { part ->
+            when (part) {
+                is PartData.FormItem -> {
+                    when (part.name) {
+                        "boardId" -> boardId = part.value.toLongOrNull()
+                        "classId" -> classId = part.value.toLongOrNull()
+                        "subjectId" -> subjectId = part.value.toLongOrNull()
+                    }
+                }
+
+                is PartData.FileItem -> {
+                    if (part.name == "pdf") {
+                        val pdfFileName = "${System.currentTimeMillis()}_${part.originalFileName?.replace(" ", "_")}"
+                        val file = File(uploadDir, pdfFileName)
+                        part.streamProvider().use { input ->
+                            file.outputStream().buffered().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        pdfFilePath = file.absolutePath
+                    }
+                }
+
+                else -> {}
+            }
+            part.dispose()
+        }
+
+        if (boardId == null || classId == null || subjectId == null || pdfFilePath == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid parameters")
+            return@post
+        }
+
+        try {
+            val newPaper = db.insert(boardId!!, classId!!, subjectId!!, pdfFilePath!!)
+            if (newPaper != null) {
+                call.respond(HttpStatusCode.Created, newPaper)
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, "Unable to create paper")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while processing request: ${e.message}")
+        }
+    }
+
+    put("/v1/papers/{paperId}") {
+        val paperId = call.parameters["paperId"]?.toLongOrNull()
+        if (paperId == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid paper ID")
+            return@put
+        }
+
+        val multipart = call.receiveMultipart()
+        var boardId: Long? = null
+        var classId: Long? = null
+        var subjectId: Long? = null
+        var pdfFileName: String? = null
+        var pdfFilePath: String? = null
+        val uploadDir = File("upload/products/pdfs/papers")
+        if (!uploadDir.exists()) {
+            uploadDir.mkdirs()
+        }
+
+        multipart.forEachPart { part ->
+            when (part) {
+                is PartData.FormItem -> {
+                    when (part.name) {
+                        "boardId" -> boardId = part.value.toLongOrNull()
+                        "classId" -> classId = part.value.toLongOrNull()
+                        "subjectId" -> subjectId = part.value.toLongOrNull()
+                    }
+                }
+
+                is PartData.FileItem -> {
+                    if (part.name == "pdf") {
+                        pdfFileName = part.originalFileName?.replace(" ", "_")?.let {
+                            if (!it.endsWith(".pdf")) "$it.pdf" else it
+                        }
+                        val file = File(uploadDir, pdfFileName)
+                        part.streamProvider().use { input ->
+                            file.outputStream().buffered().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        pdfFilePath = "/upload/products/pdfs/papers/$pdfFileName"
+                    }
+                }
+
+                else -> {}
+            }
+            part.dispose()
+        }
+
+        if (boardId == null || classId == null || subjectId == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid parameters")
+            return@put
+        }
+
+        try {
+            val updatedPaper = db.update(paperId, boardId, classId, subjectId, pdfFilePath)
+            if (updatedPaper != null) {
+                call.respond(HttpStatusCode.OK, updatedPaper)
+            } else {
+                call.respond(HttpStatusCode.NotFound, "Paper not found")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while processing request: ${e.message}")
+        }
+    }
+
+    get("/v1/papers/board/{boardId}") {
+        val boardId = call.parameters["boardId"]?.toLongOrNull()
+        if (boardId == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid board ID")
+            return@get
+        }
+
+        try {
+            val papers = db.getPapersByBoardId(boardId)
+            if (papers != null) {
+                call.respond(HttpStatusCode.OK, papers)
+            } else {
+                call.respond(HttpStatusCode.NotFound, "No papers found for this board")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while fetching papers: ${e.message}")
+        }
+    }
+
+    get("/v1/papers/class/{classId}") {
+        val classId = call.parameters["classId"]?.toLongOrNull()
+        if (classId == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid class ID")
+            return@get
+        }
+
+        try {
+            val papers = db.getPapersByClassId(classId)
+            if (papers != null) {
+                call.respond(HttpStatusCode.OK, papers)
+            } else {
+                call.respond(HttpStatusCode.NotFound, "No papers found for this class")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while fetching papers: ${e.message}")
+        }
+    }
+
+    get("/v1/papers/subject/{subjectId}") {
+        val subjectId = call.parameters["subjectId"]?.toLongOrNull()
+        if (subjectId == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid subject ID")
+            return@get
+        }
+
+        try {
+            val papers = db.getPapersBySubjectId(subjectId)
+            if (papers != null) {
+                call.respond(HttpStatusCode.OK, papers)
+            } else {
+                call.respond(HttpStatusCode.NotFound, "No papers found for this subject")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while fetching papers: ${e.message}")
+        }
+    }
+}

@@ -3,6 +3,7 @@ package com.example.data.local.db
 import com.example.data.local.table.notes.NotesTable
 import com.example.data.local.table.papers.boards.BoardsTable
 import com.example.data.local.table.papers.classes.ClassesTable
+import com.example.data.local.table.papers.papers.PapersTable
 import com.example.data.local.table.papers.subjects.SubjectsTable
 import com.example.data.local.table.quiz.QuizCategoryTable
 import com.example.data.local.table.quiz.QuizQuestionTable
@@ -26,7 +27,8 @@ object DatabaseFactory {
                 NotesTable,
                 BoardsTable,
                 ClassesTable,
-                SubjectsTable
+                SubjectsTable,
+                PapersTable
             )
         }
     }
