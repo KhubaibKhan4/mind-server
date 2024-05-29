@@ -2,6 +2,7 @@ package com.example.plugins
 
 import com.example.domain.model.login.LoginResponse
 import com.example.domain.repository.notes.NotesRepository
+import com.example.domain.repository.papers.BoardsRepository
 import com.example.domain.repository.quiz.QuizQuestionsRepository
 import com.example.domain.repository.quiz.QuizRepository
 import com.example.domain.repository.user.UsersRepository
@@ -1065,9 +1066,10 @@ fun Route.quiz(db: QuizQuestionsRepository, categoryDb: QuizRepository) {
         }
     }
 }
+
 fun Route.notes(
-    db:NotesRepository
-){
+    db: NotesRepository
+) {
     post("v1/notes") {
         val multipart = call.receiveMultipart()
         var title = ""
@@ -1087,6 +1089,7 @@ fun Route.notes(
                         "description" -> description = part.value
                     }
                 }
+
                 is PartData.FileItem -> {
                     if (part.name == "pdf") {
                         pdfFileName = part.originalFileName?.replace(" ", "_")
@@ -1100,6 +1103,7 @@ fun Route.notes(
                         pdfFilePath = "/upload/products/notes/$pdfFileName"
                     }
                 }
+
                 else -> {}
             }
             part.dispose()
@@ -1117,7 +1121,7 @@ fun Route.notes(
             } else {
                 call.respond(HttpStatusCode.InternalServerError, "Unable to create note")
             }
-        }catch (e:Exception){
+        } catch (e: Exception) {
             call.respond(HttpStatusCode.Unauthorized, "Error While Uploading Data to Server ${e.message}")
         }
     }
@@ -1129,27 +1133,27 @@ fun Route.notes(
             } else {
                 call.respond(HttpStatusCode.InternalServerError, "Unable to fetch notes")
             }
-        }catch (e:Exception){
+        } catch (e: Exception) {
             call.respond(HttpStatusCode.Unauthorized, "Error While Fetching Data From Server ${e.message}")
         }
     }
     get("v1/notes/{id}") {
         val id = call.parameters["id"]?.toLongOrNull()
-       try {
-           if (id == null) {
-               call.respond(HttpStatusCode.BadRequest, "Invalid note ID")
-               return@get
-           }
+        try {
+            if (id == null) {
+                call.respond(HttpStatusCode.BadRequest, "Invalid note ID")
+                return@get
+            }
 
-           val note = db.getNoteById(id)
-           if (note != null) {
-               call.respond(note)
-           } else {
-               call.respond(HttpStatusCode.NotFound, "Note not found")
-           }
-       }catch (e:Exception){
-           call.respond(HttpStatusCode.Unauthorized, "Error While Fetching Data From Server ${e.message}")
-       }
+            val note = db.getNoteById(id)
+            if (note != null) {
+                call.respond(note)
+            } else {
+                call.respond(HttpStatusCode.NotFound, "Note not found")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.Unauthorized, "Error While Fetching Data From Server ${e.message}")
+        }
     }
     put("v1/notes/{id}") {
         val id = call.parameters["id"]?.toLongOrNull()
@@ -1172,6 +1176,7 @@ fun Route.notes(
                         "description" -> description = part.value
                     }
                 }
+
                 is PartData.FileItem -> {
                     if (part.name == "pdf") {
                         pdfFileName = part.originalFileName?.replace(" ", "_")
@@ -1185,6 +1190,7 @@ fun Route.notes(
                         pdfFilePath = "/upload/notes/$pdfFileName"
                     }
                 }
+
                 else -> {}
             }
             part.dispose()
@@ -1211,7 +1217,7 @@ fun Route.notes(
             } else {
                 call.respond(HttpStatusCode.InternalServerError, "Unable to update note")
             }
-        }catch (e:Exception){
+        } catch (e: Exception) {
             call.respond(HttpStatusCode.Unauthorized, "Error While Updating Data to Server ${e.message}")
         }
     }
@@ -1222,16 +1228,192 @@ fun Route.notes(
             return@delete
         }
 
-       try {
-           val deleteCount = db.deleteNote(id)
-           if (deleteCount > 0) {
-               call.respond(HttpStatusCode.OK, "Note deleted successfully")
-           } else {
-               call.respond(HttpStatusCode.InternalServerError, "Unable to delete note")
-           }
-       }catch (e: Exception){
-           call.respond(HttpStatusCode.Unauthorized, "Error While Deleting Data to Server ${e.message}")
-       }
+        try {
+            val deleteCount = db.deleteNote(id)
+            if (deleteCount > 0) {
+                call.respond(HttpStatusCode.OK, "Note deleted successfully")
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, "Unable to delete note")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.Unauthorized, "Error While Deleting Data to Server ${e.message}")
+        }
     }
 
+}
+
+fun Route.boards(db: BoardsRepository) {
+    post("v1/boards") {
+        val multipart = call.receiveMultipart()
+        var title = ""
+        var description = ""
+        var imageFileName = ""
+        var imageFilePath: String? = null
+        val uploadDir = File("upload/products/boards")
+        if (!uploadDir.exists()) {
+            uploadDir.mkdirs()
+        }
+
+        multipart.forEachPart { part ->
+            when (part) {
+                is PartData.FormItem -> {
+                    when (part.name) {
+                        "title" -> title = part.value
+                        "description" -> description = part.value
+                    }
+                }
+
+                is PartData.FileItem -> {
+                    if (part.name == "image") {
+                        imageFileName = part.originalFileName?.replace(" ", "_")
+                            ?: "image_${System.currentTimeMillis()}.jpg"
+                        val file = File(uploadDir, imageFileName)
+                        part.streamProvider().use { input ->
+                            file.outputStream().buffered().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        imageFilePath = "/upload/products/boards/$imageFileName"
+                    }
+                }
+
+                else -> {}
+            }
+            part.dispose()
+        }
+
+        try {
+            if (imageFilePath == null) {
+                call.respond(HttpStatusCode.BadRequest, "Image file is required")
+                return@post
+            }
+
+            val board = db.insert(title, description, imageFilePath!!)
+            if (board != null) {
+                call.respond(HttpStatusCode.Created, board)
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, "Unable to create board")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while uploading data to server: ${e.message}")
+        }
+    }
+
+    get("v1/boards") {
+        try {
+            val boards = db.getAllBoards()
+            if (boards != null) {
+                call.respond(boards)
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, "Unable to fetch boards")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while fetching boards: ${e.message}")
+        }
+    }
+
+    get("v1/boards/{id}") {
+        val id = call.parameters["id"]?.toLongOrNull()
+        try {
+            if (id == null) {
+                call.respond(HttpStatusCode.BadRequest, "Invalid board ID")
+                return@get
+            }
+
+            val board = db.getBoardById(id)
+            if (board != null) {
+                call.respond(board)
+            } else {
+                call.respond(HttpStatusCode.NotFound, "Board not found")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while fetching board: ${e.message}")
+        }
+    }
+
+    put("v1/boards/{id}") {
+        val id = call.parameters["id"]?.toLongOrNull()
+        if (id == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid board ID")
+            return@put
+        }
+
+        val multipart = call.receiveMultipart()
+        var title = ""
+        var description = ""
+        var imageFileName = ""
+        var imageFilePath: String? = null
+
+        multipart.forEachPart { part ->
+            when (part) {
+                is PartData.FormItem -> {
+                    when (part.name) {
+                        "title" -> title = part.value
+                        "description" -> description = part.value
+                    }
+                }
+
+                is PartData.FileItem -> {
+                    if (part.name == "image") {
+                        imageFileName = part.originalFileName?.replace(" ", "_")
+                            ?: "image_${System.currentTimeMillis()}.jpg"
+                        val file = File("upload/products/boards", imageFileName)
+                        part.streamProvider().use { input ->
+                            file.outputStream().buffered().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        imageFilePath = "/upload/products/boards/$imageFileName"
+                    }
+                }
+
+                else -> {}
+            }
+            part.dispose()
+        }
+
+        try {
+            val currentBoard = db.getBoardById(id)
+            if (currentBoard == null) {
+                call.respond(HttpStatusCode.NotFound, "Board not found")
+                return@put
+            }
+
+            val finalImageFilePath = imageFilePath ?: currentBoard.imageUrl
+
+            val updateCount = db.updateBoard(
+                id = id,
+                title = title,
+                description = description,
+                imageUrl = finalImageFilePath
+            )
+
+            if (updateCount > 0) {
+                call.respond(HttpStatusCode.OK, "Board updated successfully")
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, "Unable to update board")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while updating board: ${e.message}")
+        }
+    }
+
+    delete("v1/boards/{id}") {
+        val id = call.parameters["id"]?.toLongOrNull()
+        if (id == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid board ID")
+            return@delete
+        }
+
+        try {
+            val deleteCount = db.deleteBoardById(id)
+            if (deleteCount > 0) {
+                call.respond(HttpStatusCode.OK, "Board deleted successfully")
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, "Unable to delete board")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while deleting board: ${e.message}")
+        }
+    }
 }
