@@ -1,6 +1,8 @@
 package com.example.plugins
 
 import com.example.domain.model.login.LoginResponse
+import com.example.domain.model.papers.combine.BoardDetails
+import com.example.domain.model.papers.combine.ClassDetails
 import com.example.domain.repository.classes.ClassesRepository
 import com.example.domain.repository.notes.NotesRepository
 import com.example.domain.repository.papers.BoardsRepository
@@ -1680,3 +1682,49 @@ fun Route.subjects(
         }
     }
 }
+fun Route.boardDetails(
+    boardDb: BoardsRepository,
+    classDb: ClassesRepository,
+    subjectDb: SubjectsRepository
+) {
+    get("/v1/board-details/{boardId}") {
+        val boardId = call.parameters["boardId"]?.toLongOrNull()
+        if (boardId == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid board ID")
+            return@get
+        }
+
+        try {
+            val board = boardDb.getBoardById(boardId)?.let { board ->
+                val classes = classDb.getClassesByBoardId(boardId) ?: emptyList()
+                val classDetails = classes.map { classItem ->
+                    val subjects = subjectDb.getSubjectsByClassId(classItem.id) ?: emptyList()
+                    ClassDetails(
+                        id = classItem.id,
+                        boardId = classItem.boardId,
+                        title = classItem.title,
+                        description = classItem.description,
+                        subjects = subjects
+                    )
+                }
+
+                BoardDetails(
+                    id = board.id,
+                    title = board.title,
+                    description = board.description,
+                    imageUrl = board.imageUrl,
+                    classes = classDetails
+                )
+            }
+
+            if (board == null) {
+                call.respond(HttpStatusCode.NotFound, "Board not found")
+            } else {
+                call.respond(HttpStatusCode.OK, board)
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while processing request: ${e.message}")
+        }
+    }
+}
+

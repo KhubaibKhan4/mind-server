@@ -34,5 +34,6 @@ fun Application.configureRouting() {
         boards(boardsDb)
         classes(classesDb)
         subjects(subject)
+        boardDetails(boardsDb,classesDb,subject)
     }
 }
