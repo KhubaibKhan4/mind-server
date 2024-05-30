@@ -1,13 +1,16 @@
 package com.example.plugins
 
 import com.example.data.local.db.DatabaseFactory
+import com.example.domain.model.quiz.QuizSubCategory
 import com.example.domain.repository.classes.ClassesRepository
 import com.example.domain.repository.notes.NotesRepository
 import com.example.domain.repository.papers.BoardsRepository
 import com.example.domain.repository.papers.PapersRepository
 import com.example.domain.repository.papers.SubjectsRepository
 import com.example.domain.repository.quiz.QuizQuestionsRepository
+import com.example.domain.repository.quiz.QuizQuestionsRepositoryWithSubCategory
 import com.example.domain.repository.quiz.QuizRepository
+import com.example.domain.repository.quiz.QuizSubRepository
 import com.example.domain.repository.user.UsersRepository
 import io.ktor.server.application.*
 import io.ktor.server.plugins.autohead.*
@@ -25,6 +28,8 @@ fun Application.configureRouting() {
     val classesDb = ClassesRepository()
     val subject = SubjectsRepository()
     val paperRepository = PapersRepository()
+    val subCategory = QuizSubRepository()
+    val subquestion = QuizQuestionsRepositoryWithSubCategory()
     routing {
         get("/") {
             call.respondText("Hello World!")
@@ -38,5 +43,7 @@ fun Application.configureRouting() {
         subjects(subject)
         papersRoute(paperRepository)
         boardDetails(boardsDb, classesDb, subject,paperRepository)
+        subcategory(subCategory)
+        quizWithSubCategory(subquestion,subCategory)
     }
 }

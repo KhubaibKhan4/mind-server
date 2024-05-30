@@ -7,6 +7,8 @@ import com.example.data.local.table.papers.papers.PapersTable
 import com.example.data.local.table.papers.subjects.SubjectsTable
 import com.example.data.local.table.quiz.QuizCategoryTable
 import com.example.data.local.table.quiz.QuizQuestionTable
+import com.example.data.local.table.quiz.QuizQuestionTableWithSubCategory
+import com.example.data.local.table.quiz.QuizSubCategoryTable
 import com.example.data.local.table.user.UserTable
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
@@ -28,7 +30,9 @@ object DatabaseFactory {
                 BoardsTable,
                 ClassesTable,
                 SubjectsTable,
-                PapersTable
+                PapersTable,
+                QuizSubCategoryTable,
+                QuizQuestionTableWithSubCategory
             )
         }
     }
