@@ -5,11 +5,13 @@ import com.example.data.local.table.papers.boards.BoardsTable
 import com.example.data.local.table.papers.classes.ClassesTable
 import com.example.data.local.table.papers.papers.PapersTable
 import com.example.data.local.table.papers.subjects.SubjectsTable
+import com.example.data.local.table.promotions.PromotionsTable
 import com.example.data.local.table.quiz.QuizCategoryTable
 import com.example.data.local.table.quiz.QuizQuestionTable
 import com.example.data.local.table.quiz.QuizQuestionTableWithSubCategory
 import com.example.data.local.table.quiz.QuizSubCategoryTable
 import com.example.data.local.table.user.UserTable
+import com.example.domain.repository.promotion.PromotionsRepository
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import kotlinx.coroutines.Dispatchers
@@ -32,7 +34,8 @@ object DatabaseFactory {
                 SubjectsTable,
                 PapersTable,
                 QuizSubCategoryTable,
-                QuizQuestionTableWithSubCategory
+                QuizQuestionTableWithSubCategory,
+                PromotionsTable
             )
         }
     }

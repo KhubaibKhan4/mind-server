@@ -10,6 +10,7 @@ import com.example.domain.repository.notes.NotesRepository
 import com.example.domain.repository.papers.BoardsRepository
 import com.example.domain.repository.papers.PapersRepository
 import com.example.domain.repository.papers.SubjectsRepository
+import com.example.domain.repository.promotion.PromotionsRepository
 import com.example.domain.repository.quiz.QuizQuestionsRepository
 import com.example.domain.repository.quiz.QuizQuestionsRepositoryWithSubCategory
 import com.example.domain.repository.quiz.QuizRepository
@@ -2327,6 +2328,154 @@ fun Route.quizWithSubCategory(
             }
         } catch (e: Exception) {
             call.respond(HttpStatusCode.InternalServerError, "Error: ${e.message}")
+        }
+    }
+}
+fun Route.promotionsRoute(db: PromotionsRepository) {
+    post("/v1/promotions") {
+        val multipart = call.receiveMultipart()
+        var imageUrl: String? = null
+        val uploadDir = File("upload/products/promotions/images")
+        if (!uploadDir.exists()) {
+            uploadDir.mkdirs()
+        }
+
+        multipart.forEachPart { part ->
+            when (part) {
+                is PartData.FileItem -> {
+                    if (part.name == "image") {
+                        val fileName = part.originalFileName?.replace(" ", "_")
+                            ?: "image${System.currentTimeMillis()}"
+                        val file = File("upload/products/promotions/images", fileName)
+                        part.streamProvider().use { input ->
+                            file.outputStream().buffered().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        imageUrl = "/upload/products/promotions/images/${fileName}"
+                    }
+                }
+                else -> {}
+            }
+            part.dispose()
+        }
+
+        if (imageUrl == null) {
+            call.respond(HttpStatusCode.BadRequest, "Missing image URL")
+            return@post
+        }
+
+        try {
+            val newPromotion = db.insert(imageUrl!!)
+            if (newPromotion != null) {
+                call.respond(HttpStatusCode.Created, newPromotion)
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, "Unable to create promotion")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while processing request: ${e.message}")
+        }
+    }
+
+    put("/v1/promotions/{promotionId}") {
+        val promotionId = call.parameters["promotionId"]?.toLongOrNull()
+        if (promotionId == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid promotion ID")
+            return@put
+        }
+
+        val multipart = call.receiveMultipart()
+        var imageUrl: String? = null
+        val uploadDir = File("upload/products/promotions/images")
+        if (!uploadDir.exists()) {
+            uploadDir.mkdirs()
+        }
+
+        multipart.forEachPart { part ->
+            when (part) {
+                is PartData.FileItem -> {
+                    if (part.name == "image") {
+                        val fileName = part.originalFileName?.replace(" ", "_")
+                            ?: "image${System.currentTimeMillis()}"
+                        val file = File("upload/products/users", fileName)
+                        part.streamProvider().use { input ->
+                            file.outputStream().buffered().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        imageUrl = "/upload/products/promotions/images/${fileName}"
+                    }
+                }
+                else -> {}
+            }
+            part.dispose()
+        }
+
+        if (imageUrl == null) {
+            call.respond(HttpStatusCode.BadRequest, "Missing image URL")
+            return@put
+        }
+
+        try {
+            val updatedRows = db.updatePromotion(promotionId, imageUrl!!)
+            if (updatedRows > 0) {
+                call.respond(HttpStatusCode.OK, "Promotion updated successfully")
+            } else {
+                call.respond(HttpStatusCode.NotFound, "Promotion not found")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while processing request: ${e.message}")
+        }
+    }
+
+    get("/v1/promotions/{promotionId}") {
+        val promotionId = call.parameters["promotionId"]?.toLongOrNull()
+        if (promotionId == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid promotion ID")
+            return@get
+        }
+
+        try {
+            val promotion = db.getPromotionById(promotionId)
+            if (promotion != null) {
+                call.respond(HttpStatusCode.OK, promotion)
+            } else {
+                call.respond(HttpStatusCode.NotFound, "Promotion not found")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while processing request: ${e.message}")
+        }
+    }
+
+    get("/v1/promotions") {
+        try {
+            val promotions = db.getAllPromotions()
+            if (promotions != null) {
+                call.respond(HttpStatusCode.OK, promotions)
+            } else {
+                call.respond(HttpStatusCode.NotFound, "No promotions found")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while fetching promotions: ${e.message}")
+        }
+    }
+
+    delete("/v1/promotions/{promotionId}") {
+        val promotionId = call.parameters["promotionId"]?.toLongOrNull()
+        if (promotionId == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid promotion ID")
+            return@delete
+        }
+
+        try {
+            val deletedRows = db.deletePromotionById(promotionId)
+            if (deletedRows > 0) {
+                call.respond(HttpStatusCode.OK, "Promotion deleted successfully")
+            } else {
+                call.respond(HttpStatusCode.NotFound, "Promotion not found")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Error while deleting promotion: ${e.message}")
         }
     }
 }

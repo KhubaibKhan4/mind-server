@@ -7,6 +7,7 @@ import com.example.domain.repository.notes.NotesRepository
 import com.example.domain.repository.papers.BoardsRepository
 import com.example.domain.repository.papers.PapersRepository
 import com.example.domain.repository.papers.SubjectsRepository
+import com.example.domain.repository.promotion.PromotionsRepository
 import com.example.domain.repository.quiz.QuizQuestionsRepository
 import com.example.domain.repository.quiz.QuizQuestionsRepositoryWithSubCategory
 import com.example.domain.repository.quiz.QuizRepository
@@ -30,6 +31,7 @@ fun Application.configureRouting() {
     val paperRepository = PapersRepository()
     val subCategory = QuizSubRepository()
     val subquestion = QuizQuestionsRepositoryWithSubCategory()
+    val promotions = PromotionsRepository()
     routing {
         get("/") {
             call.respondText("Hello World!")
@@ -45,5 +47,6 @@ fun Application.configureRouting() {
         boardDetails(boardsDb, classesDb, subject,paperRepository)
         subcategory(subCategory)
         quizWithSubCategory(subquestion,subCategory)
+        promotionsRoute(promotions)
     }
 }
