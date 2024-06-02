@@ -48,4 +48,5 @@ dependencies {
     implementation("com.zaxxer:HikariCP:$hikaricp_version")
     implementation("org.jetbrains.exposed:exposed-java-time:$exposed_version")
     implementation("org.postgresql:postgresql:$postgres_version")
+    implementation("io.ktor:ktor-server-websockets:$ktor_version")
 }

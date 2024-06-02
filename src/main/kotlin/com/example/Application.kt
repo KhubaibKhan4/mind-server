@@ -14,6 +14,7 @@ fun main() {
 
 fun Application.module() {
     configureSerialization()
+    configureWebSockets()
     configureDatabases()
     configureHTTP()
     configureSecurity()

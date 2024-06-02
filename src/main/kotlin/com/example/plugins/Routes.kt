@@ -1,10 +1,10 @@
 package com.example.plugins
 
+import com.example.domain.model.chat.ChatMessage
 import com.example.domain.model.login.LoginResponse
 import com.example.domain.model.papers.combine.BoardDetails
 import com.example.domain.model.papers.combine.ClassDetails
 import com.example.domain.model.papers.combine.SubjectDetails
-import com.example.domain.model.papers.papers.Papers
 import com.example.domain.repository.classes.ClassesRepository
 import com.example.domain.repository.notes.NotesRepository
 import com.example.domain.repository.papers.BoardsRepository
@@ -22,9 +22,13 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.server.websocket.*
+import io.ktor.websocket.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
 
 fun Route.users(
     db: UsersRepository
