@@ -235,6 +235,12 @@ class UsersRepository : UsersDao {
                 .singleOrNull()
         }
     }
+    suspend fun getUsersByEmails(emails: List<String>): List<Users> {
+        return DatabaseFactory.dbQuery {
+            UserTable.select { UserTable.email inList emails }
+                .mapNotNull { rowToResult(it) }
+        }
+    }
 
 
     private val jwtVerifier : JWTVerifier = JWT.require(Algorithm.HMAC256(jwtSecret))

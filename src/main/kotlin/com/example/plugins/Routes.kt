@@ -301,6 +301,40 @@ fun Route.users(
             )
         }
     }
+    get("v1/users/emails") {
+        val emailsParam = call.request.queryParameters["emails"]
+        try {
+            if (emailsParam.isNullOrBlank()) {
+                return@get call.respondText(
+                    "Emails parameter is missing",
+                    status = HttpStatusCode.BadRequest
+                )
+            }
+
+            val emails = emailsParam.split(",")
+            val users = emails.mapNotNull { email ->
+                db.getUserByEmail(email)
+            }
+
+            if (users.isEmpty()) {
+                return@get call.respondText(
+                    "No users found",
+                    status = HttpStatusCode.NotFound
+                )
+            } else {
+                return@get call.respond(
+                    HttpStatusCode.OK,
+                    users
+                )
+            }
+        } catch (e: Exception) {
+            call.respond(
+                status = HttpStatusCode.InternalServerError,
+                "Error while fetching data from server: ${e.message}"
+            )
+        }
+    }
+
 
     get("v1/users/{id}") {
         val parameters = call.parameters["id"]
