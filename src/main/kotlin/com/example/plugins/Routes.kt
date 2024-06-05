@@ -15,6 +15,7 @@ import com.example.domain.repository.quiz.QuizQuestionsRepository
 import com.example.domain.repository.quiz.QuizQuestionsRepositoryWithSubCategory
 import com.example.domain.repository.quiz.QuizRepository
 import com.example.domain.repository.quiz.QuizSubRepository
+import com.example.domain.repository.resume.ResumeRepository
 import com.example.domain.repository.user.UsersRepository
 import io.ktor.http.*
 import io.ktor.http.content.*
@@ -24,10 +25,13 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.time.Instant
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 fun Route.users(
@@ -2514,6 +2518,192 @@ fun Route.promotionsRoute(db: PromotionsRepository) {
             }
         } catch (e: Exception) {
             call.respond(HttpStatusCode.InternalServerError, "Error while deleting promotion: ${e.message}")
+        }
+    }
+}
+suspend fun generatePdf(htmlContent: String): File {
+    val tempHtmlFile = File.createTempFile("resume", ".html")
+    val tempPdfFile = File.createTempFile("resume", ".pdf")
+
+    tempHtmlFile.writeText(htmlContent)
+
+    withContext(Dispatchers.IO) {
+        val process = ProcessBuilder("C:\\\\Program Files\\\\wkhtmltopdf\\\\bin\\\\wkhtmltopdf.exe", tempHtmlFile.absolutePath, tempPdfFile.absolutePath)
+            .start()
+        process.waitFor()
+    }
+
+    tempHtmlFile.delete()
+    return tempPdfFile
+}
+fun Route.resumes(db: ResumeRepository) {
+    post("/generate-pdf") {
+        val htmlContent = call.receiveText()
+        val pdfFile = generatePdf(htmlContent)
+        call.respondFile(pdfFile)
+    }
+    post("v1/resumes") {
+        val multipart = call.receiveMultipart()
+        var categoryName = ""
+        var imageFileName = ""
+        var imageFilePath: String? = null
+        val uploadDir = File("upload/products/resumes/images")
+        if (!uploadDir.exists()) {
+            uploadDir.mkdirs()
+        }
+
+        multipart.forEachPart { part ->
+            when (part) {
+                is PartData.FormItem -> {
+                    if (part.name == "categoryName") {
+                        categoryName = part.value
+                    }
+                }
+                is PartData.FileItem -> {
+                    if (part.name == "image") {
+                        val fileExtension = part.originalFileName?.substringAfterLast(".", "jpg")
+                        imageFileName = "${UUID.randomUUID()}.$fileExtension"
+                        val file = File(uploadDir, imageFileName)
+                        part.streamProvider().use { input ->
+                            file.outputStream().buffered().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        imageFilePath = "/upload/products/resumes/images/$imageFileName"
+                    }
+                }
+                else -> {}
+            }
+            part.dispose()
+        }
+
+        try {
+            if (imageFilePath == null) {
+                call.respond(HttpStatusCode.BadRequest, "Image file is required")
+                return@post
+            }
+
+            val resume = db.insert(categoryName, imageFilePath!!)
+            if (resume != null) {
+                call.respond(HttpStatusCode.Created, resume)
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, "Unable to create resume")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.Unauthorized, "Error while uploading data to server: ${e.message}")
+        }
+    }
+
+    get("v1/resumes") {
+        try {
+            val resumes = db.getAllResume()
+            if (resumes != null) {
+                call.respond(resumes)
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, "Unable to fetch resumes")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.Unauthorized, "Error while fetching data from server: ${e.message}")
+        }
+    }
+
+    get("v1/resumes/{id}") {
+        val id = call.parameters["id"]?.toLongOrNull()
+        try {
+            if (id == null) {
+                call.respond(HttpStatusCode.BadRequest, "Invalid resume ID")
+                return@get
+            }
+
+            val resume = db.getResumeById(id)
+            if (resume != null) {
+                call.respond(resume)
+            } else {
+                call.respond(HttpStatusCode.NotFound, "Resume not found")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.Unauthorized, "Error while fetching data from server: ${e.message}")
+        }
+    }
+
+    put("v1/resumes/{id}") {
+        val id = call.parameters["id"]?.toLongOrNull()
+        if (id == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid resume ID")
+            return@put
+        }
+
+        val multipart = call.receiveMultipart()
+        var categoryName = ""
+        var imageFileName = ""
+        var imageFilePath: String? = null
+
+        multipart.forEachPart { part ->
+            when (part) {
+                is PartData.FormItem -> {
+                    if (part.name == "categoryName") {
+                        categoryName = part.value
+                    }
+                }
+                is PartData.FileItem -> {
+                    if (part.name == "image") {
+                        val fileExtension = part.originalFileName?.substringAfterLast(".", "jpg")
+                        imageFileName = "${UUID.randomUUID()}.$fileExtension"
+                        val file = File("upload/products/resumes/images", imageFileName)
+                        part.streamProvider().use { input ->
+                            file.outputStream().buffered().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        imageFilePath = "/upload//products/resumes/images/$imageFileName"
+                    }
+                }
+                else -> {}
+            }
+            part.dispose()
+        }
+
+        try {
+            val currentResume = db.getResumeById(id)
+            if (currentResume == null) {
+                call.respond(HttpStatusCode.NotFound, "Resume not found")
+                return@put
+            }
+
+            val finalImageFilePath = imageFilePath ?: currentResume.imageUrl
+
+            val updateCount = db.updateResume(
+                id = id,
+                categoryName = categoryName,
+                imageUrl = finalImageFilePath
+            )
+
+            if (updateCount > 0) {
+                call.respond(HttpStatusCode.OK, "Resume updated successfully")
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, "Unable to update resume")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.Unauthorized, "Error while updating data to server: ${e.message}")
+        }
+    }
+
+    delete("v1/resumes/{id}") {
+        val id = call.parameters["id"]?.toLongOrNull()
+        if (id == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid resume ID")
+            return@delete
+        }
+
+        try {
+            val deleteCount = db.deleteById(id)
+            if (deleteCount > 0) {
+                call.respond(HttpStatusCode.OK, "Resume deleted successfully")
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, "Unable to delete resume")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.Unauthorized, "Error while deleting data from server: ${e.message}")
         }
     }
 }

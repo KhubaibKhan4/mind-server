@@ -10,6 +10,7 @@ import com.example.data.local.table.quiz.QuizCategoryTable
 import com.example.data.local.table.quiz.QuizQuestionTable
 import com.example.data.local.table.quiz.QuizQuestionTableWithSubCategory
 import com.example.data.local.table.quiz.QuizSubCategoryTable
+import com.example.data.local.table.resume.ResumeTable
 import com.example.data.local.table.user.UserTable
 import com.example.domain.repository.promotion.PromotionsRepository
 import com.zaxxer.hikari.HikariConfig
@@ -35,7 +36,8 @@ object DatabaseFactory {
                 PapersTable,
                 QuizSubCategoryTable,
                 QuizQuestionTableWithSubCategory,
-                PromotionsTable
+                PromotionsTable,
+                ResumeTable
             )
         }
     }

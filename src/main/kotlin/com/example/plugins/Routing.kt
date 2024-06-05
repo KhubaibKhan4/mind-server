@@ -12,6 +12,7 @@ import com.example.domain.repository.quiz.QuizQuestionsRepository
 import com.example.domain.repository.quiz.QuizQuestionsRepositoryWithSubCategory
 import com.example.domain.repository.quiz.QuizRepository
 import com.example.domain.repository.quiz.QuizSubRepository
+import com.example.domain.repository.resume.ResumeRepository
 import com.example.domain.repository.user.UsersRepository
 import io.ktor.server.application.*
 import io.ktor.server.plugins.autohead.*
@@ -34,6 +35,7 @@ fun Application.configureRouting() {
     val subCategory = QuizSubRepository()
     val subquestion = QuizQuestionsRepositoryWithSubCategory()
     val promotions = PromotionsRepository()
+    val resume = ResumeRepository()
     routing {
         get("/") {
             call.respondText("Hello World!")
@@ -50,5 +52,6 @@ fun Application.configureRouting() {
         subcategory(subCategory)
         quizWithSubCategory(subquestion,subCategory)
         promotionsRoute(promotions)
+        resumes(resume)
     }
 }
